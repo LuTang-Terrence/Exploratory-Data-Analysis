@@ -1,0 +1,563 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+Exploratory White Wine Data Analysis by Lu Tang
+========================================================
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.path='Figs/', echo=FALSE, warning=FALSE, 
+                      message=FALSE)
+```
+# Overview & Main Question:
+
+This project includes my thought and findings by exploring a set of wine data. 
+Based on the info text, there are a few objective tests with quantitative data, 
+and a column of sensory variable (taste quality) as output. By univariate, 
+bivariate, and multivariate analyses with summary and reflection in the 
+following report, I hope to reveal some relationship between the inputs and 
+"quality". The original dataset can be found here:
+
+> http://www3.dsi.uminho.pt/pcortez/wine/
+
+# Quick Data Preview
+
+```{r echo=FALSE, packages}
+# Load all of the packages that you end up using in your analysis in this code
+# chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk. This
+# prevents the code from displaying in the knitted HTML output. You should set
+# echo=FALSE for all code chunks in your file, unless it makes sense for your
+# report to show the code that generated a particular plot.
+
+# The other parameters for "message" and "warning" should also be set to FALSE
+# for other code chunks once you have verified that each plot comes out as you
+# want it to. This will clean up the flow of your report.
+
+library(ggplot2)
+library(GGally)
+library(gridExtra)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+wine <- read.csv("wineQualityWhites.csv")
+```
+
+```{r echo=FALSE}
+# Get the structure and summary of the wine data frame
+str(wine)
+summary(wine)
+```
+
+Based on the quick analysis, the wine data frame consists of 13 variables and 
+4898 observations. Among the 13 variables, the first one is the order of all 
+wines tested, and the last one is output "quality". We will then focus on the 
+other 11 variables impact on wine quality.
+
+For the "quality", the actual ratings start from 1 (worst) to 9 (best), with a 
+median of 6 and mean of 5.878.
+
+Some max value are much higher than the median and 3rd quarter value 
+(residual.sugar & free.sulfur.dioxide), indicating that the data set may contain
+outliers. This doesn't mean those observations are dubious, they could simply be
+some extreme cases. However, in order to get a good sense of the whole picture, 
+the outliers are removed before analyses in each specific case.
+
+
+# Univariate Plots Section
+
+I first plot all the univariate plots, hopefully to see the distribution of each
+variable.
+
+```{r echo=FALSE, Univariate_Plots1}
+create.histogram <- function(x){
+  ggplot(data = wine, mapping = aes_string(x)) + 
+    geom_histogram(bins = 50)
+}
+
+h.fixed.acidity <- create.histogram('fixed.acidity')
+h.volatile.acidity <- create.histogram('volatile.acidity')
+h.citric.acid <- create.histogram('citric.acid')
+h.residual.sugar <- create.histogram('residual.sugar')
+h.chlorides <- create.histogram('chlorides')
+h.free.sulfur.dioxide <- create.histogram('free.sulfur.dioxide')
+h.total.sulfur.dioxide <- create.histogram('total.sulfur.dioxide')
+h.density <- create.histogram('density')
+h.pH <- create.histogram('pH')
+h.sulphates <- create.histogram('sulphates')
+h.alcohol <- create.histogram('alcohol')
+h.quality <- ggplot(data = wine, aes(quality)) +
+  geom_histogram(bins = 7, fill = 'red')
+
+#Show all the histogram together
+grid.arrange(h.fixed.acidity, h.volatile.acidity, h.citric.acid, 
+             h.residual.sugar, h.chlorides, h.free.sulfur.dioxide,
+             h.total.sulfur.dioxide, h.density, h.pH,
+             h.sulphates, h.alcohol, h.quality, ncol = 4)
+```
+
+Here the 12 histograms are arranged together, with the "quality" filled in 
+red, since it's output. After looking through them, I find that there are a few 
+parts need to be modified. Some of them has long tails due to right skewed or 
+outliers, some need different binwidth to be read.
+
+```{r echo=FALSE, Univariate_Plots1_Refined}
+create.histogram2 <- function(x, variable, bw){
+  ggplot(data = wine, mapping = aes_string(x)) +
+    xlim(quantile(variable, 0.001),
+         quantile(variable, 0.999)) +
+    geom_histogram(binwidth = bw)
+}
+
+h.fixed.acidity2 <- create.histogram2('fixed.acidity', wine$fixed.acidity, 0.1)
+h.volatile.acidity2 <- ggplot(wine, aes(x = volatile.acidity)) +
+  xlim(quantile(wine$volatile.acidity, 0.001),
+       quantile(wine$volatile.acidity, 0.999)) +
+  geom_histogram() +
+  scale_x_log10()
+h.citric.acid2 <- create.histogram2('citric.acid', wine$citric.acid, 0.02)
+h.residual.sugar2 <- ggplot(wine, aes(x = residual.sugar)) +
+  xlim(quantile(wine$residual.sugar, 0.001),
+       quantile(wine$residual.sugar, 0.999)) +
+  geom_histogram() +
+  scale_x_log10()
+h.chlorides2 <- ggplot(wine, aes(x = chlorides)) +
+  xlim(quantile(wine$chlorides, 0.001),
+       quantile(wine$chlorides, 0.999)) +
+  geom_histogram() +
+  scale_x_log10()
+h.free.sulfur.dioxide2 <- create.histogram2('free.sulfur.dioxide', 
+                                            wine$free.sulfur.dioxide, 2)
+h.total.sulfur.dioxide2 <- create.histogram2('total.sulfur.dioxide', 
+                                             wine$total.sulfur.dioxide, 4)
+h.density2 <- create.histogram2('density', wine$density, 0.0005)
+h.pH2 <- create.histogram2('pH', wine$pH, 0.02)
+h.sulphates2 <- create.histogram2('sulphates', wine$sulphates, 0.02)
+h.alcohol2 <- create.histogram2('alcohol', wine$alcohol, 0.1)
+h.quality2 <- ggplot(data = wine, aes(quality)) +
+  xlim(quantile(wine$quality, 0.001),
+       quantile(wine$quality, 0.999)) +
+  geom_histogram(fill = 'red')
+
+#Show all the histogram together
+grid.arrange(h.fixed.acidity2, h.volatile.acidity2, h.citric.acid2, 
+             h.residual.sugar2, h.chlorides2, h.free.sulfur.dioxide2,
+             h.total.sulfur.dioxide2, h.density2, h.pH2,
+             h.sulphates2, h.alcohol2, h.quality2, ncol = 4)
+```
+
+Now they look much better. Let's look into the some of the details.
+
+```{r echo=FALSE, volatile.acidity}
+grid.arrange(h.volatile.acidity, h.volatile.acidity2, ncol = 2)
+```
+
+volatile.acidity has been log transformed, with its x-axis' top and bottom 0.1%
+removed. Now it's less right skewed with a bell-like shape.
+
+```{r echo=FALSE, residual.sugar}
+grid.arrange(h.residual.sugar, h.residual.sugar2, ncol = 2)
+```
+
+residual.sugar has been log transformed, with its x-axis' top and bottom 0.1%
+removed. We can see a clear bimodal shape of it.
+
+```{r echo=FALSE, chlorides}
+grid.arrange(h.chlorides, h.chlorides2, ncol = 2)
+```
+
+chlorides has also been log transformed, with its x-axis' top and bottom 0.1%
+removed. It also shows a sharp bell-like structure.
+
+```{r echo=FALSE, quality}
+grid.arrange(h.quality, h.quality2, ncol = 2)
+```
+
+quality is a little special. Though it seems continuous, but actually it is more
+like categorical. It's range is also limited by removing top and bottom 0.1% 
+outliers. With narrower bins, we can see the trend more clearly.
+
+Notice here I set the upper and lower limit really strict: only top and bottom 
+0.1% of the data are treated as outliers. Let's see what would happen if we set 
+the limit to 1% for "quality".
+
+```{r echo=FALSE, WQ}
+table(wine$quality == 3)
+```
+
+Notice there are only 20 observations are equal to 3, which is smaller than 1% 
+of 4878. The RStudio will then remove all the values equal to 4 since it doesn't
+know which of the "4s" to keep, so that we can only see values from 5 in 
+"quality" plot. Similar phenomena happens to the "density" plots. This could 
+probably mean that the white wine data set doesn't have much outliers.
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+
+There are 4898 white wines in the dataset with 11 quatitative featuresand 1 
+output variable (sensory "quality" between 0 to 10, but the actual values range 
+from 3 to 9). The mean quality is 5.878 and median is 6.
+
+### What is/are the main feature(s) of interest in your dataset?
+
+The main features of interest are how these input variables related to the wine 
+"quality", or how some of them together correlated with the output (i.e. maybe 
+citric acid + residual sugar + total sulful dioxide together strongly impact the
+wine quality).
+
+### What other features in the dataset do you think will help support your \
+investigation into your feature(s) of interest?
+
+I think it is better to look into these variables by several groups: acidity, 
+sulfur and the other, then try to see if there exist a correlation between 
+groups.
+
+### Did you create any new variables from existing variables in the dataset?
+
+Not for univariate analysis yet.
+
+### Of the features you investigated, were there any unusual distributions? \
+Did you perform any operations on the data to tidy, adjust, or change the form \
+of the data? If so, why did you do this?
+
+After plotting all the univariate features into histogram, I found that many of 
+them are skewed/long tailed. So I removed the outliers of top and bottom 0.1% of 
+each variable, and changed some of the x-axis into log form. I also adjusted the
+bin width for each of the histograms.
+
+
+# Bivariate Plots Section
+
+```{r echo=FALSE, Bivariate_Plots, dpi = 600}
+head(wine)
+ggpairs(wine, columns = 2:13,
+        lower = list(continuous = wrap('points', alpha = 0.5, size = 0.5)),
+        upper = list(continuous = wrap('cor', size = 3)),
+        axisLabels = 'show') +
+  theme(axis.text = element_text(size = 6))
+```
+
+I double checked the wine dataset by listing its first 6 observations for each 
+column. The first one is an order factor, hence I plotted the other 12 
+variables' relationship into a matrix plot. We can get a quick and brief idea 
+about the data frame. For example, it is easy to tell that residual.sugar has a 
+positive correlation with density. Then I will pick a few of those variables for
+further exploration.
+
+In the matrix, I used all the 4898 observations for each of the variables, so 
+the correlation are more precise than taking random samples. There are 3 parts 
+in the matrix plot: the lower left part shows all the bivariate point plots, 
+while their corresponding correlation are shown on upper right part, and the 
+diagonal plots are the density function of each of the variables.
+
+We can easily tell some strong bivariate correlation either from high absolute 
+value of "Corr", or their dense points distribution. For our main interest about
+quality, the volatile.acid has stronger correlation (-0.195) than fixed.acid 
+(-0.114), and the citric.acid almost not related to quality (-0.00921). On the 
+other hand, chlorides (-0.21), density (-0.307) and alcohol (0.436) play more
+important roles on quality. 
+
+At the same time, correlation between some input variables are also notable and 
+quite interesting. For example, it is easy to imply a strong correlation between free.sulfur.dioxide and total.sulfur.dioxide (0.616), since the former is a part
+of the latter. The most significant correlation is between residual.sugar to 
+density (0.839), which is almost linear. As mentioned before, density has a 
+strong correlation with quality, however this is not true for residual.sugar 
+(-0.0976), which is quite interesting to dig into. I also noticed a strong 
+correlation between density and alcohol (-0.78), and both of them are strongly 
+correlated with quality. 
+
+I may not explain the above phenomena in this report without the help of 
+statistical inference. Nonetheless it won't block me to take a close look at 
+these bivariate relationship.
+
+Firstly, I chose a few input variables with output "quality". I picked 
+residual.sugar as not significant related, and chlorides, density and alcohol as 
+more related to "quality". 
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = residual.sugar)) + 
+  ylim(c(0, 15)) +
+  geom_jitter(alpha = 0.1) +
+  geom_line(stat = "summary", fun.y = mean, color = "red")
+```
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = residual.sugar, group = quality)) + 
+  ylim(c(0, 15)) +
+  geom_boxplot()
+```
+
+The residual.sugar median for each quality goes irregularly. At the same 
+time, each 1st to 3rd quantile of residual.sugar covers a long range and 
+overlapping with the others. So there is no trend to tell whether high or low 
+residual.sugar leads to a good quality. 
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = chlorides)) + 
+  ylim(c(0.01, 0.06)) +
+  geom_jitter(alpha = 0.1) +
+  geom_line(stat = "summary", fun.y = mean, color = "red")
+```
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = chlorides, group = quality)) +
+  ylim(c(0.01, 0.06)) +
+  geom_boxplot()
+```
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = density)) + 
+  ylim(c(0.988, 1)) +
+  geom_jitter(alpha = 0.1) +
+  geom_line(stat = "summary", fun.y = mean, color = "red")
+```
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = density, group = quality)) +
+  ylim(c(0.988, 1)) +
+  geom_boxplot()
+```
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = alcohol)) + 
+  ylim(c(9, 13)) +
+  geom_jitter(alpha = 0.1) +
+  geom_line(stat = "summary", fun.y = mean, color = "red")
+```
+
+```{r}
+ggplot(data = wine, aes(x = quality, y = alcohol, group = quality)) +
+  ylim(c(9, 13)) +
+  geom_boxplot()
+```
+
+On the other hand, the other 3 set of plots all showed some trends through the 
+median, though they are not monotonic. They all have inflection points at 
+quality of 5. For chlorides and density, the main trend after inflection points 
+are decreasing with the increasement of quality, proving their negative 
+correlation. However, it is not enough to guarantee good quality by any single 
+variable of them. In each boxplot, at quality of 4 and 6 all have a lot of 
+overlaps. This leads to an analysis of multivariate relatioship in latter part 
+of this report.
+
+Meanwhile, let's take a look at the correlation between input variables.
+
+```{r echo=FALSE, Bivariate_Plots3}
+bp.residual.sugar.density <-
+  ggplot(data = wine, aes(x = residual.sugar, y = density)) +
+  geom_jitter(alpha = 0.2, color = "red") +
+  xlim(0, quantile(wine$residual.sugar, 0.95)) +
+  ylim(0.987, quantile(wine$density, 0.95)) +
+  geom_smooth()
+
+bp.residual.sugar.density
+```
+
+As expected, the density is strongly correlated with residual.sugar. But it 
+looks like three distinct part with different slopes, especially at 
+residual.sugar = 3. Remember in the univariate analysis part, only 
+residual.sugar shows a bimodal distribution. Hence I'd like to check the 
+pearson correlation at the two different part.
+
+```{r echo=FALSE, Cor.test}
+wine.rs1 <- subset(wine, residual.sugar <= 3)
+wine.rs2 <- subset(wine, residual.sugar > 3)
+print("correlation of density and residual.sugar <= 3")
+cor.test(wine.rs1$density, wine.rs1$residual.sugar)
+print("correlation of density and residual.sugar > 3")
+cor.test(wine.rs2$density, wine.rs2$residual.sugar)
+```
+
+It is quite interesting to see that they behaved so differently: the former part
+is almost non-correlated, but the latter is strongly correlated. It tells that:
+the density is less determined by residual.sugar at low residual.sugar level, 
+but they are highly correlated at high residual.sugar level.
+
+```{r echo=FALSE, Bivariate_Plots4}
+bp.alcohol.density <-
+  ggplot(data = wine, aes(x = alcohol, y = density)) +
+  geom_jitter(alpha = 0.2, color = "red") +
+  xlim(7.5, 14.5) +
+  ylim(0.987, quantile(wine$density, 0.95)) +
+  geom_smooth()
+
+bp.alcohol.density
+```
+
+Also, density is strongly negatively correlated with alcohol.
+
+# Bivariate Analysis
+
+In the bivariate analysis part, I first checked the matrix plot to find out some
+potential interesting relationship. Then I studied 4 input variables's 
+correlation with output "quality" with boxplots. They are residual.sugar, 
+chlorides, density, andclcohol. I also checked the relationships between two 
+sets of input features: residual.sugar to density and alcohol to density.
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. How did the feature(s) of interest vary with other features in \
+the data set?
+
+Since our main interst is to find out if there is a feature that lead to a high 
+"quality", the bivariate section gives us a good opportunity to check them. As 
+shown in the boxplots, residual.sugar is a very bad indicator to quality, while 
+chlorides, density, and alcohol show relatively strong correlation with quality.
+However, none of them alone can be used to predict quality.
+
+### Did you observe any interesting relationships between the other features \
+(not the main feature(s) of interest)?
+
+Density has strong positive correlation with residual.sugar (0.839) and negative
+correlation with alcohol (-0.78). From the points and smooth line plots, we can 
+see almost linear relationship. This is quite interesting since both density and
+alcohol also correlated with quality. In my opinion, alcohol is lighter than 
+water, hence more alcohol lead to lower density. If we use alcohol as a feature 
+to predict quality, we should not use density together.
+
+### What was the strongest relationship you found?
+
+The strongest relationship in my bivariate analysis is between residual.sugar 
+with density (0.839). This is reasonable physically.
+
+
+# Multivariate Plots Section
+
+In the previous analysis, I found that chlorides and alcohol have relatively 
+significant correlation with quality. So I put these 3 together, marking quality
+with different colors.
+
+```{r echo=FALSE, Multivariate_Plots1}
+ggplot(data = wine, aes(x = alcohol, y = chlorides)) +
+  geom_point(aes(color = factor(quality))) +
+  scale_color_brewer(type = "qual", palette = "Blues")
+```
+
+We can see a clear trend that higher alcohol indicating higher quality. However,
+we cannot tell how is chlorides correlated with quality. In other words, as a 
+multivariate plot, it doesn't give us more information than a bivariate plot of 
+alcohol to quality.
+
+I'm then interested to see the relationship among density, residual.sugar and 
+alcohol. As discussed above, these three features are strongly related.
+
+```{r echo=FALSE, Multivariate_Plots2}
+wine.rs <- subset(wine, residual.sugar <= quantile(wine$residual.sugar, 0.95))
+ggplot(data = wine.rs, aes(x = alcohol, y = residual.sugar)) +
+  geom_point(aes(color = density)) +
+  scale_color_gradientn(colours = rainbow(5))
+```
+
+Great! A very well separated rainbow pattern appears. We can easily see that: 
+higher residual.sugar and lower alcohol lead to higher density. This proves my
+previous analysis. 
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the \
+investigation. Were there features that strengthened each other in terms of \
+looking at your feature(s) of interest?
+
+My main interest is to find a few features that can work together to predict 
+quality, thus I picked the most significant correlated features with quality. 
+However, they don't work together as discussed in the first mulitvariate plots.
+At the same time, I found a pretty good correlation among density, 
+residual.sugar and alcohol.
+
+### Were there any interesting or surprising interactions between features?
+
+The residual.sugar and alcohol can be good indicator for density. Because of 
+this, density should not be used together with alcohol to predict quality.
+
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, Plot_One}
+bp.q.alcohol2 <-
+  ggplot(data = wine, aes(x = quality, y = alcohol, group = quality)) +
+  ylim(c(9, 13)) +
+  ylab("alcohol (% by volume)") +
+  ggtitle("Boxplot Alcohol vs Quality") +
+  geom_boxplot()
+
+bp.q.alcohol2
+```
+
+### Description One
+
+The boxplot shows relatively strong positive correlation between alcohol and 
+quality. Although the relationship is not linear, we can still see a clear trend
+especially with quality > 5. However, the overlapping made it's not reliable to
+predict quality with alcohol as single input variable.
+
+Along with the other boxplots, these very basic correlation can help me to find 
+out some interesting features that are relatively strongly related to quality.
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+bp.alcohol.density2 <-
+  ggplot(data = wine, aes(x = alcohol, y = density)) +
+  geom_jitter(alpha = 0.2, color = "red") +
+  xlim(7.5, 14.5) +
+  ylim(0.987, quantile(wine$density, 0.95)) +
+  xlab("alcohol (% by volume)") +
+  ylab("density (g / cm^3)") +
+  ggtitle("Relation between Density and Alcohol") +
+  geom_smooth()
+
+bp.alcohol.density2
+```
+
+### Description Two
+
+Density is strongly negatively correlated with alcohol. In this case, if we use
+both density and alcohol to predict quality, yes, we will get a good 
+correlation. However, it is meaningless. 
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+wine.rs2 <- subset(wine, residual.sugar <= quantile(wine$residual.sugar, 0.95))
+ggplot(data = wine.rs2, aes(x = alcohol, y = residual.sugar)) +
+  geom_point(aes(color = density)) +
+  scale_color_gradientn(colours = rainbow(5)) +
+  xlab("alcohol (% by volume)") +
+  ylab("residual sugar (g / dm^3)") +
+  ggtitle("Density Distribution by Residual Sugar and Alcohol") +
+  labs(color = "density (g / cm^3)")
+```
+
+### Description Three
+
+Instead of predicting of quality by multi input features, density distribution 
+can be perfectly predicted by residual sugar and alcohol. A nice rainbow like 
+pattern indicates that higher residual sugar and lower alcohol leads to higher
+density, and vice versa.
+
+
+------
+
+# Reflection
+
+This is my first exploratory data analysis project. By now, I learnt to use 
+extensive libraries in R. I got familiar with checking data information through 
+dim, str, ploting with multiple types, adjusting dataset and removing outliers, 
+and improving charts' readability through changing transparency, jitter, 
+smoothing, labeling and so on. Most importantly, all the above are done with R 
+markdown. I'm now confident with the tool to create professional-looking 
+reports.
+
+Another great thing I learnt is doing analysis step by step. We need to go 
+through univariate analysis to bivariate, then to multivariate analysis. In each
+of them, it's good to have a big picture rather than randomly picking any 
+feature. I plotted all the 12 univariate plots, and all bivariate plots in a 
+matrix plot. They help me a lot to go through this project.
+
+Originally, I would like to find some features that can working together to give
+a good prediction of output "quality", however not able to do it without the 
+help of statistical inference or model training. I can't wait to keep learning.
